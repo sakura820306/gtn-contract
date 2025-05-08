@@ -1,0 +1,61 @@
+module;
+
+// 貨幣發行者
+entity issuer {
+    key _id: text = '3653f21e-4518-4cba-adb6-8748c47c8d05';
+    name: text;
+    mutable point: integer = 1000000000000;
+    created_at: timestamp = op_context.last_block_time;
+    mutable updated_at: timestamp = op_context.last_block_time;
+}
+
+// 使用者
+entity user {
+    key _id: text = '3653f21e-4518-4cba-adb6-8748c47c8d05';
+    name: text = '點數發行商';
+    mutable point: integer = 0;
+    created_at: timestamp = op_context.last_block_time;
+    mutable updated_at: timestamp = op_context.last_block_time;
+}
+
+// 頻道
+entity channel {
+    key _id: text;
+    name: text;
+    answer: integer;
+    mutable is_open: boolean = false;
+    guess_count: integer = 0;
+    mutable point: integer = 0;
+    created_at: timestamp = op_context.last_block_time;
+    mutable updated_at: timestamp = op_context.last_block_time;
+}
+
+// 頻道帳本
+entity book {
+    index user_id: text = '';
+    name: text = '';
+    from: text = '';
+    to: text = '';
+    guess_number: integer = 0;
+    pay_point: integer = 0;
+    memo: text = '';
+    created_at: timestamp = op_context.last_block_time;
+    mutable updated_at: timestamp = op_context.last_block_time;
+}
+
+// 初始化發行者點數
+operation init() {
+    update issuer @ { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' } ( .point = 1000000000000 );
+}
+
+//索取點數, 固定100點
+operation get_point(userId: text) {
+    require(user @? { ._id == userId } != null, '使用者不存在');
+    val userDetail = user @ { ._id == userId };
+    val issuerDetail = issuer @ { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' };
+
+    require(issuerDetail.point >= 100, '發行者點數不足');
+    update issuer @ { ._id == issuerDetail._id } ( .point = issuerDetail.point - 100 );
+    update user @ { ._id == userDetail._id } ( .point = user.point + 100 );
+}
+
