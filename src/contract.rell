@@ -23,8 +23,8 @@ entity channel {
     key _id: text;
     name: text;
     answer: integer;
-    mutable is_open: boolean = false;
-    guess_count: integer = 0;
+    mutable is_open: boolean = true;
+    guess_count: integer = 10;
     mutable point: integer = 0;
     created_at: timestamp = op_context.last_block_time;
     mutable updated_at: timestamp = op_context.last_block_time;
@@ -36,11 +36,17 @@ entity book {
     name: text = '';
     from: text = '';
     to: text = '';
-    guess_number: integer = 0;
-    pay_point: integer = 0;
+    answer: integer = 0; // 答案
+    guess_number: integer = 10; // 猜測的數字
+    total_point: integer = 0;
     memo: text = '';
     created_at: timestamp = op_context.last_block_time;
     mutable updated_at: timestamp = op_context.last_block_time;
+}
+
+function get_random_number(high: integer = 100): integer {
+    if (high == 0) return 0; // avoid division by zero
+    return (op_context.last_block_time - op_context.block_height - op_context.op_index) % high + 1;
 }
 
 // 初始化發行者點數
@@ -50,11 +56,53 @@ operation init() {
 
 //索取點數
 operation get_point(userId: text) {
-    require(user @? { ._id == userId } != null, '使用者不存在');
-    val userDetail = user @ { ._id == userId };
-    val issuerDetail = issuer @ { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' };
+    require(user @? { ._id == userId } != null, '使用者不存在'); // 檢查使用者
+    val userDetail = user @ { ._id == userId }; // 取得使用者資料
+    val issuerDetail = issuer @ { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' }; // 取得發行者資料
 
     require(issuerDetail.point >= 100, '發行者點數不足');
-    update issuer @ { ._id == issuerDetail._id } ( .point = issuerDetail.point - 100 );
-    update user @ { ._id == userDetail._id } ( .point = user.point + 100 );
+    update issuer @ { ._id == issuerDetail._id } ( .point = issuerDetail.point - 100 ); // 扣除發行者點數
+    update user @ { ._id == userDetail._id } ( .point = user.point + 100 ); // 增加使用者點數
+}
+
+//創建頻道
+operation create_channel(channelId: text, name: text) {
+    require(channel @? { ._id == channelId } == null, '頻道已存在'); // 檢查頻道是否已存在
+    log('創建頻道', channelId, name); // 記錄創建頻道的日誌
+
+    val answer = get_random_number(); // 隨機生成猜測次數
+    log('答案', answer); // 記錄隨機猜測次數的日誌
+
+    create channel(
+        _id = channelId,
+        name = name,
+        answer = answer,
+        point = 0,
+        created_at = op_context.last_block_time,
+        updated_at = op_context.last_block_time
+    );
+}
+
+//猜數字
+operation guess_number(channelId: text, userId: text, guessNumber: integer) {
+    require(channel @? { ._id == channelId } != null, '頻道不存在'); // 檢查頻道是否存在
+    require(user @? { ._id == userId } != null, '使用者不存在'); // 檢查使用者是否存在
+    require(guessNumber >= 0 and guessNumber <= 100, '猜測的數字必須在1到100之間'); // 檢查猜測的數字範圍
+
+    val channelDetail = channel @ { ._id == channelId }; // 取得頻道資料
+    val userDetail = user @ { ._id == userId }; // 取得使用者資料
+
+    require(channelDetail.is_open, '頻道已關閉'); // 檢查頻道是否開啟
+    require(userDetail.point >= 10, '使用者點數不足'); // 檢查使用者點數是否足夠
+
+    update user @ { ._id == userDetail._id } ( .point = userDetail.point - 10 ); // 扣除使用者點數
+    update channel @ { ._id == channelDetail._id } ( .point = channelDetail.point + 10 ); // 增加頻道點數
+
+    log('猜測的數字', guessNumber); // 記錄猜測的數字日誌
+
+    if (guessNumber == channelDetail.answer) {
+        log('猜對了！', guessNumber); // 記錄猜對的日誌
+        update user @ { ._id == userDetail._id } ( .point = userDetail.point + 100 ); // 增加使用者點數
+        update channel @ { ._id == channelDetail._id } ( .is_open = false ); // 關閉頻道
+    }
 }
