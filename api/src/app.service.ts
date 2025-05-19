@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { ConsoleLogger, HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { FailoverStrategy, Operation, SignatureProvider, TransactionReceipt, createClient, newSignatureProvider } from 'postchain-client';
 import { chainRes } from './app.interface';
 
@@ -9,17 +9,20 @@ export class AppService {
 
     async restClient() {
         const nodeUrl: string[] = process.env.BLOCLCHAIN_API_URL.split(',');
+        const rid: string = process.env.BLOCKCHAIN_RID;
         const client = await createClient({
             nodeUrlPool: nodeUrl,
             // directoryNodeUrlPool: nodeUrl, // 要有目錄鏈
-            blockchainRid: process.env.BLOCKCHAIN_RID,
-            blockchainIid: 0,
+            blockchainRid: rid,
+            // blockchainIid: 0,
             failOverConfig: {
                 strategy: FailoverStrategy.TryNextOnError,
                 attemptsPerEndpoint: 3,
                 attemptInterval: 1000,
                 unreachableDuration: 180000,
             },
+            useStickyNode: false,
+            merkleHashVersion: 0,
         });
         this.logger.debug(`client: ${JSON.stringify(client)}`);
         return client;
@@ -67,6 +70,15 @@ export class AppService {
         };
     }
 
+    async initBlockchainIssuer(): Promise<chainRes> {
+        const client = await this.restClient();
+        const payload: Operation = {
+            name: 'init',
+            args: [],
+        };
+
+        return await this.chainOperation(payload);
+    }
 
     getHello(): string {
         return 'Hello World!';

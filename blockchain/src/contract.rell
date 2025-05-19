@@ -45,7 +45,12 @@ entity book {
 
 // 初始化發行者點數
 operation init() {
-    update issuer @ { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' } ( .point = 1000000000000 );
+    if (issuer @? { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' } != null) {
+        update issuer @ { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' } ( .point = 1000000000000 );    
+    } else {
+        create issuer( name = '點數發行商' );
+    }
+    
 }
 
 //索取點數, 固定100點

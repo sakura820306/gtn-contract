@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<dict>
+    <entry key="add_primary_key_to_header">
+        <int>1</int>
+    </entry>
+    <entry key="blockstrategy">
+        <dict>
+            <entry key="mininterblockinterval">
+                <int>1000</int>
+            </entry>
+            <entry key="name">
+                <string>net.postchain.base.BaseBlockBuildingStrategy</string>
+            </entry>
+        </dict>
+    </entry>
+    <entry key="config_consensus_strategy">
+        <string>HEADER_HASH</string>
+    </entry>
+    <entry key="configurationfactory">
+        <string>net.postchain.gtx.GTXBlockchainConfigurationFactory</string>
+    </entry>
+    <entry key="gtx">
+        <dict>
+            <entry key="modules">
+                <array>
+                    <string>net.postchain.rell.module.RellPostchainModuleFactory</string>
+                    <string>net.postchain.gtx.StandardOpsGTXModule</string>
+                </array>
+            </entry>
+            <entry key="rell">
+                <dict>
+                    <entry key="compilerVersion">
+                        <string>0.13.14</string>
+                    </entry>
+                    <entry key="modules">
+                        <array>
+                            <string>contract</string>
+                        </array>
+                    </entry>
+                    <entry key="sources">
+                        <dict>
+                            <entry key="contract.rell">
+                                <string>module;
+
+// 貨幣發行者
+entity issuer {
+    key _id: text = '3653f21e-4518-4cba-adb6-8748c47c8d05';
+    name: text;
+    mutable point: integer = 1000000000000;
+    created_at: timestamp = op_context.last_block_time;
+    mutable updated_at: timestamp = op_context.last_block_time;
+}
+
+// 使用者
+entity user {
+    key _id: text = '3653f21e-4518-4cba-adb6-8748c47c8d05';
+    name: text = '點數發行商';
+    mutable point: integer = 0;
+    created_at: timestamp = op_context.last_block_time;
+    mutable updated_at: timestamp = op_context.last_block_time;
+}
+
+// 頻道
+entity channel {
+    key _id: text;
+    name: text;
+    answer: integer;
+    mutable is_open: boolean = false;
+    guess_count: integer = 0;
+    mutable point: integer = 0;
+    created_at: timestamp = op_context.last_block_time;
+    mutable updated_at: timestamp = op_context.last_block_time;
+}
+
+// 頻道帳本
+entity book {
+    index user_id: text = '';
+    name: text = '';
+    from: text = '';
+    to: text = '';
+    guess_number: integer = 0;
+    pay_point: integer = 0;
+    memo: text = '';
+    created_at: timestamp = op_context.last_block_time;
+    mutable updated_at: timestamp = op_context.last_block_time;
+}
+
+// 初始化發行者點數
+operation init() {
+    if (issuer @? { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' } != null) {
+        update issuer @ { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' } ( .point = 1000000000000 );    
+    } else {
+        create issuer( name = '點數發行商' );
+    }
+    
+}
+
+//索取點數, 固定100點
+operation get_point(userId: text) {
+    require(user @? { ._id == userId } != null, '使用者不存在');
+    val userDetail = user @ { ._id == userId };
+    val issuerDetail = issuer @ { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' };
+
+    require(issuerDetail.point &gt;= 100, '發行者點數不足');
+    update issuer @ { ._id == issuerDetail._id } ( .point = issuerDetail.point - 100 );
+    update user @ { ._id == userDetail._id } ( .point = user.point + 100 );
+}
+
+</string>
+                            </entry>
+                        </dict>
+                    </entry>
+                    <entry key="version">
+                        <string>0.12.0</string>
+                    </entry>
+                </dict>
+            </entry>
+        </dict>
+    </entry>
+    <entry key="max_block_future_time">
+        <int>10000</int>
+    </entry>
+    <entry key="query_cache_ttl_seconds">
+        <int>0</int>
+    </entry>
+    <entry key="revolt">
+        <dict>
+            <entry key="fast_revolt_status_timeout">
+                <int>2000</int>
+            </entry>
+            <entry key="revolt_when_should_build_block">
+                <int>1</int>
+            </entry>
+        </dict>
+    </entry>
+    <entry key="signers">
+        <array>
+            <bytea>02C86E998A0CD3E6FC1FE1B571CCCA60A59D8A3C1C6AF7D9446C25489C681F09F3</bytea>
+            <bytea>0213DF1E0CCC65DB0BC34AEBC317F304B17868978EAFC873C637C58ECBB04DAB3C</bytea>
+            <bytea>038FDE72308A4297F220C48D8ECE3147905F068EFE1908E51D5A25ADBA49A0652A</bytea>
+            <bytea>03FEB85B59FADDAA7BD64E81CC2F57473EB220ABEA32A9398C65C0C06FBDEF3290</bytea>
+        </array>
+    </entry>
+    <entry key="txqueuecapacity">
+        <int>2500</int>
+    </entry>
+</dict>
