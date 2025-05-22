@@ -124,30 +124,47 @@ operation guessNumber(channelId: text, userId: text, guessNumber: integer) {
         .guess_count = channel.guess_count + 1,
         .point = channel.point + 10 
     );
+    create channel_ledger (
+        _id = op_context.tx_id,
+        channel = channelDetail._id,
+        user_id = userDetail._id,
+        from = userDetail._id,
+        to = channelDetail._id,
+        guess_number = guessNumber,
+        pay_point = 10,
+        memo = 'guess Hit!'
+    );
 
     if (guessNumber == channelDetail.answer) {
-        update channel @ { ._id == channelDetail._id } ( .point = channel.point + 10 );
-        update user @ { ._id == userDetail._id } ( .point = user.point + 20 );
+        update channel @ { ._id == channelDetail._id } ( .point = .point - channelDetail.point );
+        update user @ { ._id == userDetail._id } ( .point = user.point + channelDetail.point );
+        
         create channel_ledger(
-            _id = op_context.tx_id,
-            channel = channelDetail._id,
+            channel = channelDetail,
             user_id = userDetail._id,
-            from = userDetail._id,
-            to = channelDetail._id,
+            from = channelDetail._id,
+            to = userDetail._id,
             guess_number = guessNumber,
-            pay_point = 10,
-            memo = '猜對了'
+            pay_point = channelDetail.point,
+            memo = 'user: ' + userDetail._id + 'guess Hit!'
         );
     } else {
         create channel_ledger(
-            _id = op_context.tx_id,
-            channel = channelDetail._id,
+            channel = chchannelDetail,
             user_id = userDetail._id,
             from = userDetail._id,
             to = channelDetail._id,
             guess_number = guessNumber,
             pay_point = 10,
-            memo = '猜錯了'
+            memo = 'not guess Hit!'
         );
     }
+}
+
+query getHistory(userId: text) {
+    return channel_ledger @* { .user_id == userId }().to_gtv_pretty();
+}
+
+query getChannelHistory(channelId: text) {
+    return channel_ledger @* { .channel == channelId }().to_gtv_pretty();
 }
