@@ -12,7 +12,7 @@ services:
       - POSTGRES_USER=postchain
       - POSTGRES_PASSWORD=postchain
     ports:
-      - "127.0.0.1:5440:5432"
+      - "0.0.0.0:5440:5432"
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postchain"]
@@ -38,7 +38,7 @@ services:
       - POSTGRES_USER=postchain
       - POSTGRES_PASSWORD=postchain
     ports:
-      - "127.0.0.1:5441:5432"
+      - "0.0.0.0:5441:5432"
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postchain"]
@@ -64,7 +64,7 @@ services:
       - POSTGRES_USER=postchain
       - POSTGRES_PASSWORD=postchain
     ports:
-      - "127.0.0.1:5442:5432"
+      - "0.0.0.0:5442:5432"
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postchain"]
@@ -90,7 +90,7 @@ services:
       - POSTGRES_USER=postchain
       - POSTGRES_PASSWORD=postchain
     ports:
-      - "127.0.0.1:5443:5432"
+      - "0.0.0.0:5443:5432"
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postchain"]
@@ -203,3 +203,7 @@ networks:
 #   --driver=bridge \
 #   --subnet=172.31.0.0/24 \
 #   postchain-mainnet
+
+
+# powerchell
+# docker network create --driver=bridge --subnet=172.31.0.0/24 postchain-mainnet

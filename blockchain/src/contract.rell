@@ -23,8 +23,8 @@ entity channel {
     key _id: text;
     name: text;
     answer: integer;
-    mutable is_open: boolean = false;
-    guess_count: integer = 0;
+    mutable is_open: boolean = true;
+    mutable guess_count: integer = 0;
     mutable point: integer = 0;
     created_at: timestamp = op_context.last_block_time;
     mutable updated_at: timestamp = op_context.last_block_time;
@@ -43,35 +43,57 @@ entity channel_ledger {
     mutable updated_at: timestamp = op_context.last_block_time;
 }
 
+function get_random_number(high: integer = 100): integer {
+    if (high == 0) return 0; // avoid division by zero
+    return (op_context.last_block_time - op_context.block_height - op_context.op_index) % high + 1;
+}
+
 // 初始化發行者點數
 operation init() {
     if (issuer @? { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' } != null) {
-        update issuer @ { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' } ( .point = 1000000000000 );    
+        update issuer @ { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' } ( .point = 1000000000000 );
     } else {
-        create issuer( name = '點數發行商' );
+        create issuer ( name = '點數發行商' );
     }
 }
 
 query getIssuer() {
-    return issuer @ { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' }().to_gtv_pretty();
+    return issuer @ {
+        ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05'
+    } (
+        _id = ._id,
+        name = .name,
+        point = .point
+    )
+    .to_gtv_pretty();
 }
 
 operation registerUser(userId: text, userName: text) {
     require(user @? { ._id == userId } == null, '使用者已存在');
-    create user(_id = userId, name = userName);
+    create user ( _id = userId, name = userName );
 }
 
 query getUser(userId: text) {
-    return user @ { ._id == userId }().to_gtv_pretty();
+    return user @ {
+        ._id == userId
+    } (
+        _id = ._id,
+        name = .name,
+        point = .point,
+        createdAt = .created_at,
+        updatedAt = .updated_at
+    )
+    .to_gtv_pretty();
 }
 
 query getUserList() {
-    return user @* {}(._id.name)().to_gtv_pretty();
+    return user @* { } ( _id = ._id, name = .name, point = .point, createdAt = .created_at ).to_gtv_pretty();
 }
 
 //索取點數, 固定100點
 operation get_point(userId: text) {
     require(user @? { ._id == userId } != null, '使用者不存在');
+    require(issuer @? { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' } != null, '發行者不存在, 請先初始化發行者點數');
     val userDetail = user @ { ._id == userId };
     val issuerDetail = issuer @ { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' };
 
@@ -80,25 +102,32 @@ operation get_point(userId: text) {
     update user @ { ._id == userDetail._id } ( .point = user.point + 100 );
 }
 
-
 operation createChannel(channelId: text, channelName: text) {
-    val totalChannelNumber = (channel @* {}(._id)).size();
+    // val totalChannelNumber = (channel @* {}(._id)).size();
     val answer: integer = get_random_number(100);
-    create channel(_id = totalChannelNumber+1, name = channelName, answer = answer);
+    // create channel ( _id = (totalChannelNumber+1).to_text(), name = channelName, answer );
+    require(channel @? { ._id == channelId } == null, '頻道已存在');
+    create channel ( _id = channelId, name = channelName, answer );
 }
 
 query getChannel(channelId: text) {
-    return channel @ { ._id == channelId }.to_gtv_pretty();
-}
-
-query getChannelList() {
-    return channel @* {}(
+    return channel @* { ._id == channelId } (
         _id = ._id,
         name = .name,
         isOpen = .is_open,
-        guess_count = .guess_count,
         point = .point,
-        guessHit = .guess_hit,
+        guessCount = .guess_count,
+        createdAt = .created_at
+    ).to_gtv_pretty();
+}
+
+query getChannelList() {
+    return channel @* { } (
+        _id = ._id,
+        name = .name,
+        isOpen = .is_open,
+        guessCount = .guess_count,
+        point = .point,
         createdAt = .created_at,
         updatedAt = .updated_at
     ).to_gtv_pretty();
@@ -109,10 +138,11 @@ operation guessNumber(channelId: text, userId: text, guessNumber: integer) {
     require(user @? { ._id == userId } != null, '使用者不存在');
     require(channel @? { ._id == channelId } != null, '頻道不存在');
     require(guessNumber >= 0 and guessNumber <= 100, '猜測數字必須在0到100之間');
-
     val channelDetail = channel @ { ._id == channelId };
     val userDetail = user @ { ._id == userId };
 
+    log('使用者: ' + userDetail.name + ' 猜測頻道: ' + channelDetail.name + ' 猜測數字: ' + guessNumber.to_text());
+    log('頻道 answer: ' + channelDetail.answer.to_text() + ' 頻道點數: ' + channelDetail.point.to_text());
     // 檢查頻道是否開啟
     // 檢查使用者點數是否足夠
     require(channelDetail.is_open == true, '頻道未開啟');
@@ -120,28 +150,31 @@ operation guessNumber(channelId: text, userId: text, guessNumber: integer) {
 
     //
     update user @ { ._id == userDetail._id } ( .point = user.point - 10 );
-    update channel @ { ._id == channelDetail._id } ( 
+    update channel @ { ._id == channelDetail._id } (
         .guess_count = channel.guess_count + 1,
-        .point = channel.point + 10 
+        .point = channel.point + 10
     );
+
+    log('使用者: ' + userDetail.name + ' 支付頻道點數: 10 點');
     create channel_ledger (
-        _id = op_context.tx_id,
-        channel = channelDetail._id,
-        user_id = userDetail._id,
+        channel = channelDetail,
+        user_id = userDetail,
         from = userDetail._id,
         to = channelDetail._id,
         guess_number = guessNumber,
         pay_point = 10,
-        memo = 'guess Hit!'
+        memo = 'Payment 10 points to channel'
     );
 
     if (guessNumber == channelDetail.answer) {
-        update channel @ { ._id == channelDetail._id } ( .point = .point - channelDetail.point );
+        log('使用者: ' + userDetail.name + ' 猜測正確!');
+        update channel @ { ._id == channelDetail._id } ( .point = 0, .is_open = false );
         update user @ { ._id == userDetail._id } ( .point = user.point + channelDetail.point );
-        
-        create channel_ledger(
+
+        log('使用者: ' + userDetail.name + ' 獲得頻道點數: ' + channelDetail.point.to_text());
+        create channel_ledger (
             channel = channelDetail,
-            user_id = userDetail._id,
+            user_id = userDetail,
             from = channelDetail._id,
             to = userDetail._id,
             guess_number = guessNumber,
@@ -149,9 +182,10 @@ operation guessNumber(channelId: text, userId: text, guessNumber: integer) {
             memo = 'user: ' + userDetail._id + 'guess Hit!'
         );
     } else {
-        create channel_ledger(
-            channel = chchannelDetail,
-            user_id = userDetail._id,
+        log('使用者: ' + userDetail.name + ' 猜測錯誤');
+        create channel_ledger (
+            channel = channelDetail,
+            user_id = userDetail,
             from = userDetail._id,
             to = channelDetail._id,
             guess_number = guessNumber,
@@ -162,9 +196,38 @@ operation guessNumber(channelId: text, userId: text, guessNumber: integer) {
 }
 
 query getHistory(userId: text) {
-    return channel_ledger @* { .user_id == userId }().to_gtv_pretty();
+    if (user @? { ._id == userId } == null) {
+        return ''.to_gtv_pretty();
+    } else {
+        val userDetail = user @ { ._id == userId };
+        return channel_ledger @* { .user_id == userDetail } (
+            channel = .channel._id,
+            userId = .user_id._id,
+            from = .from,
+            to = .to,
+            guessNumber = .guess_number,
+            payPoint = .pay_point,
+            memo = .memo,
+            createdAt = .created_at
+        ).to_gtv_pretty();
+    }
 }
 
 query getChannelHistory(channelId: text) {
-    return channel_ledger @* { .channel == channelId }().to_gtv_pretty();
+    if (channel @? { ._id == channelId } == null) {
+        return ''.to_gtv_pretty();
+    } else {
+        val channelDetail = channel @ { ._id == channelId };
+        return channel_ledger @* { .channel == channelDetail } (
+            channel = .channel._id,
+            userId = .user_id._id,
+            from = .from,
+            to = .to,
+            guessNumber = .guess_number,
+            payPoint = .pay_point,
+            memo = .memo,
+            createdAt = .created_at
+        ).to_gtv_pretty();
+    }
 }
+// docker compose 如何刪除 volume
