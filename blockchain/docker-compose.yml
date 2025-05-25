@@ -1,0 +1,209 @@
+services:
+  node0-db:
+    image: postgres:14.9-alpine3.18
+    container_name: lease-node0-db
+    networks:
+      postchain-mainnet:
+        ipv4_address: 172.31.0.4
+    volumes:
+      - ./data/node0:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_INITDB_ARGS=--lc-collate=c.UTF-8 --lc-ctype=C.UTF-8 --encoding=UTF-8
+      - POSTGRES_USER=postchain
+      - POSTGRES_PASSWORD=postchain
+    ports:
+      - "0.0.0.0:5440:5432"
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postchain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "3"
+        max-size: "50m"
+
+  node1-db:
+    image: postgres:14.9-alpine3.18
+    container_name: lease-node1-db
+    networks:
+      postchain-mainnet:
+        ipv4_address: 172.31.0.5
+    volumes:
+      - ./data/node1:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_INITDB_ARGS=--lc-collate=c.UTF-8 --lc-ctype=C.UTF-8 --encoding=UTF-8
+      - POSTGRES_USER=postchain
+      - POSTGRES_PASSWORD=postchain
+    ports:
+      - "0.0.0.0:5441:5432"
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postchain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "3"
+        max-size: "50m"
+
+  node2-db:
+    image: postgres:14.9-alpine3.18
+    container_name: lease-node2-db
+    networks:
+      postchain-mainnet:
+        ipv4_address: 172.31.0.6
+    volumes:
+      - ./data/node2:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_INITDB_ARGS=--lc-collate=c.UTF-8 --lc-ctype=C.UTF-8 --encoding=UTF-8
+      - POSTGRES_USER=postchain
+      - POSTGRES_PASSWORD=postchain
+    ports:
+      - "0.0.0.0:5442:5432"
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postchain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "3"
+        max-size: "50m"
+
+  node3-db:
+    image: postgres:14.9-alpine3.18
+    container_name: lease-node3-db
+    networks:
+      postchain-mainnet:
+        ipv4_address: 172.31.0.7
+    volumes:
+      - ./data/node3:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_INITDB_ARGS=--lc-collate=c.UTF-8 --lc-ctype=C.UTF-8 --encoding=UTF-8
+      - POSTGRES_USER=postchain
+      - POSTGRES_PASSWORD=postchain
+    ports:
+      - "0.0.0.0:5443:5432"
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postchain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "3"
+        max-size: "50m"
+
+  node0-cli:
+    image: registry.gitlab.com/chromaway/core-tools/chromia-cli/chr:0.13.0
+    container_name: node0-cli
+    networks:
+      postchain-mainnet:
+        ipv4_address: 172.31.0.8
+    ports:
+      - "7730:7740"
+      - "7750:7750"
+    volumes:
+      - ./:/usr/app
+    command: chr node start -bc ./build/contract.xml -np ./conf/node0.properties
+    restart: always
+    depends_on:
+      node0-db:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "3"
+        max-size: "50m"
+
+  node1-cli:
+    image: registry.gitlab.com/chromaway/core-tools/chromia-cli/chr:0.13.0
+    container_name: node1-cli
+    networks:
+      postchain-mainnet:
+        ipv4_address: 172.31.0.9
+    ports:
+      - "7731:7740"
+      - "7751:7750"
+    volumes:
+      - ./:/usr/app
+    command: chr node start -bc ./build/contract.xml -np ./conf/node1.properties
+    restart: always
+    depends_on:
+      node1-db:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "3"
+        max-size: "50m"
+
+  node2-cli:
+    image: registry.gitlab.com/chromaway/core-tools/chromia-cli/chr:0.13.0
+    container_name: node2-cli
+    networks:
+      postchain-mainnet:
+        ipv4_address: 172.31.0.10
+    ports:
+      - "7732:7740"
+      - "7752:7750"
+    volumes:
+      - ./:/usr/app
+    command: chr node start -bc ./build/contract.xml -np ./conf/node2.properties
+    restart: always
+    depends_on:
+      node2-db:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "3"
+        max-size: "50m"
+
+  node3-cli:
+    image: registry.gitlab.com/chromaway/core-tools/chromia-cli/chr:0.13.0
+    container_name: node3-cli
+    networks:
+      postchain-mainnet:
+        ipv4_address: 172.31.0.11
+    ports:
+      - "7733:7740"
+      - "7753:7750"
+    volumes:
+      - ./:/usr/app
+    command: chr node start -bc ./build/contract.xml -np ./conf/node3.properties
+    restart: always
+    depends_on:
+      node3-db:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "3"
+        max-size: "50m"
+
+networks:
+  postchain-mainnet:
+    external: true
+    ipam:
+      driver: bridge
+      config:
+        - subnet: 172.31.0.0/24
+# 對應指令
+# docker network create \
+#   --driver=bridge \
+#   --subnet=172.31.0.0/24 \
+#   postchain-mainnet
+
+
+# powerchell
+# docker network create --driver=bridge --subnet=172.31.0.0/24 postchain-mainnet

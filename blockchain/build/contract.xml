@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<dict>
+    <entry key="add_primary_key_to_header">
+        <int>1</int>
+    </entry>
+    <entry key="blockstrategy">
+        <dict>
+            <entry key="mininterblockinterval">
+                <int>1000</int>
+            </entry>
+            <entry key="name">
+                <string>net.postchain.base.BaseBlockBuildingStrategy</string>
+            </entry>
+        </dict>
+    </entry>
+    <entry key="config_consensus_strategy">
+        <string>HEADER_HASH</string>
+    </entry>
+    <entry key="configurationfactory">
+        <string>net.postchain.gtx.GTXBlockchainConfigurationFactory</string>
+    </entry>
+    <entry key="gtx">
+        <dict>
+            <entry key="modules">
+                <array>
+                    <string>net.postchain.rell.module.RellPostchainModuleFactory</string>
+                    <string>net.postchain.gtx.StandardOpsGTXModule</string>
+                </array>
+            </entry>
+            <entry key="rell">
+                <dict>
+                    <entry key="compilerVersion">
+                        <string>0.13.14</string>
+                    </entry>
+                    <entry key="modules">
+                        <array>
+                            <string>contract</string>
+                        </array>
+                    </entry>
+                    <entry key="sources">
+                        <dict>
+                            <entry key="contract.rell">
+                                <string>module;&#13;
+&#13;
+// 貨幣發行者&#13;
+entity issuer {&#13;
+    key _id: text = '3653f21e-4518-4cba-adb6-8748c47c8d05';&#13;
+    mutable name: text;&#13;
+    mutable point: integer = 1000000000000;&#13;
+    created_at: timestamp = op_context.last_block_time;&#13;
+    mutable updated_at: timestamp = op_context.last_block_time;&#13;
+}&#13;
+&#13;
+// 使用者&#13;
+entity user {&#13;
+    key _id: text;&#13;
+    mutable name: text;&#13;
+    mutable point: integer = 0;&#13;
+    created_at: timestamp = op_context.last_block_time;&#13;
+    mutable updated_at: timestamp = op_context.last_block_time;&#13;
+}&#13;
+&#13;
+// 頻道&#13;
+entity channel {&#13;
+    key _id: text;&#13;
+    name: text;&#13;
+    answer: integer;&#13;
+    mutable is_open: boolean = true;&#13;
+    mutable guess_count: integer = 0;&#13;
+    mutable point: integer = 0;&#13;
+    created_at: timestamp = op_context.last_block_time;&#13;
+    mutable updated_at: timestamp = op_context.last_block_time;&#13;
+}&#13;
+&#13;
+// 頻道帳本&#13;
+entity channel_ledger {&#13;
+    index channel: channel;&#13;
+    index user_id: user;&#13;
+    from: text = '';&#13;
+    to: text = '';&#13;
+    guess_number: integer = 0;&#13;
+    pay_point: integer = 0;&#13;
+    memo: text = '';&#13;
+    created_at: timestamp = op_context.last_block_time;&#13;
+    mutable updated_at: timestamp = op_context.last_block_time;&#13;
+}&#13;
+&#13;
+function get_random_number(high: integer = 100): integer {&#13;
+    if (high == 0) return 0; // avoid division by zero&#13;
+    return (op_context.last_block_time - op_context.block_height - op_context.op_index) % high + 1;&#13;
+}&#13;
+&#13;
+// 初始化發行者點數&#13;
+operation init() {&#13;
+    if (issuer @? { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' } != null) {&#13;
+        update issuer @ { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' } ( .point = 1000000000000 );&#13;
+    } else {&#13;
+        create issuer ( name = '點數發行商' );&#13;
+    }&#13;
+}&#13;
+&#13;
+query getIssuer() {&#13;
+    return issuer @ {&#13;
+        ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05'&#13;
+    } (&#13;
+        _id = ._id,&#13;
+        name = .name,&#13;
+        point = .point&#13;
+    )&#13;
+    .to_gtv_pretty();&#13;
+}&#13;
+&#13;
+operation registerUser(userId: text, userName: text) {&#13;
+    require(user @? { ._id == userId } == null, '使用者已存在');&#13;
+    create user ( _id = userId, name = userName );&#13;
+}&#13;
+&#13;
+query getUser(userId: text) {&#13;
+    return user @ {&#13;
+        ._id == userId&#13;
+    } (&#13;
+        _id = ._id,&#13;
+        name = .name,&#13;
+        point = .point,&#13;
+        createdAt = .created_at,&#13;
+        updatedAt = .updated_at&#13;
+    )&#13;
+    .to_gtv_pretty();&#13;
+}&#13;
+&#13;
+query getUserList() {&#13;
+    return user @* { } ( _id = ._id, name = .name, point = .point, createdAt = .created_at ).to_gtv_pretty();&#13;
+}&#13;
+&#13;
+//索取點數, 固定100點&#13;
+operation get_point(userId: text) {&#13;
+    require(user @? { ._id == userId } != null, '使用者不存在');&#13;
+    require(issuer @? { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' } != null, '發行者不存在, 請先初始化發行者點數');&#13;
+    val userDetail = user @ { ._id == userId };&#13;
+    val issuerDetail = issuer @ { ._id == '3653f21e-4518-4cba-adb6-8748c47c8d05' };&#13;
+&#13;
+    require(issuerDetail.point &gt;= 100, '發行者點數不足');&#13;
+    update issuer @ { ._id == issuerDetail._id } ( .point = issuerDetail.point - 100 );&#13;
+    update user @ { ._id == userDetail._id } ( .point = user.point + 100 );&#13;
+}&#13;
+&#13;
+operation createChannel(channelId: text, channelName: text) {&#13;
+    // val totalChannelNumber = (channel @* {}(._id)).size();&#13;
+    val answer: integer = get_random_number(100);&#13;
+    // create channel ( _id = (totalChannelNumber+1).to_text(), name = channelName, answer );&#13;
+    require(channel @? { ._id == channelId } == null, '頻道已存在');&#13;
+    create channel ( _id = channelId, name = channelName, answer );&#13;
+}&#13;
+&#13;
+query getChannel(channelId: text) {&#13;
+    return channel @* { ._id == channelId } (&#13;
+        _id = ._id,&#13;
+        name = .name,&#13;
+        isOpen = .is_open,&#13;
+        point = .point,&#13;
+        guessCount = .guess_count,&#13;
+        createdAt = .created_at&#13;
+    ).to_gtv_pretty();&#13;
+}&#13;
+&#13;
+query getChannelList() {&#13;
+    return channel @* { } (&#13;
+        _id = ._id,&#13;
+        name = .name,&#13;
+        isOpen = .is_open,&#13;
+        guessCount = .guess_count,&#13;
+        point = .point,&#13;
+        createdAt = .created_at,&#13;
+        updatedAt = .updated_at&#13;
+    ).to_gtv_pretty();&#13;
+}&#13;
+&#13;
+operation guessNumber(channelId: text, userId: text, guessNumber: integer) {&#13;
+    // 檢查使用者和頻道是否存在&#13;
+    require(user @? { ._id == userId } != null, '使用者不存在');&#13;
+    require(channel @? { ._id == channelId } != null, '頻道不存在');&#13;
+    require(guessNumber &gt;= 0 and guessNumber &lt;= 100, '猜測數字必須在0到100之間');&#13;
+    val channelDetail = channel @ { ._id == channelId };&#13;
+    val userDetail = user @ { ._id == userId };&#13;
+&#13;
+    log('使用者: ' + userDetail.name + ' 猜測頻道: ' + channelDetail.name + ' 猜測數字: ' + guessNumber.to_text());&#13;
+    log('頻道 answer: ' + channelDetail.answer.to_text() + ' 頻道點數: ' + channelDetail.point.to_text());&#13;
+    // 檢查頻道是否開啟&#13;
+    // 檢查使用者點數是否足夠&#13;
+    require(channelDetail.is_open == true, '頻道未開啟');&#13;
+    require(userDetail.point &gt;= 10, '使用者點數不足');&#13;
+&#13;
+    //&#13;
+    update user @ { ._id == userDetail._id } ( .point = user.point - 10 );&#13;
+    update channel @ { ._id == channelDetail._id } (&#13;
+        .guess_count = channel.guess_count + 1,&#13;
+        .point = channel.point + 10&#13;
+    );&#13;
+&#13;
+    log('使用者: ' + userDetail.name + ' 支付頻道點數: 10 點');&#13;
+    create channel_ledger (&#13;
+        channel = channelDetail,&#13;
+        user_id = userDetail,&#13;
+        from = userDetail._id,&#13;
+        to = channelDetail._id,&#13;
+        guess_number = guessNumber,&#13;
+        pay_point = 10,&#13;
+        memo = 'Payment 10 points to channel'&#13;
+    );&#13;
+&#13;
+    if (guessNumber == channelDetail.answer) {&#13;
+        log('使用者: ' + userDetail.name + ' 猜測正確!');&#13;
+        update channel @ { ._id == channelDetail._id } ( .point = 0, .is_open = false );&#13;
+        update user @ { ._id == userDetail._id } ( .point = user.point + channelDetail.point );&#13;
+&#13;
+        log('使用者: ' + userDetail.name + ' 獲得頻道點數: ' + channelDetail.point.to_text());&#13;
+        create channel_ledger (&#13;
+            channel = channelDetail,&#13;
+            user_id = userDetail,&#13;
+            from = channelDetail._id,&#13;
+            to = userDetail._id,&#13;
+            guess_number = guessNumber,&#13;
+            pay_point = channelDetail.point,&#13;
+            memo = 'user: ' + userDetail._id + 'guess Hit!'&#13;
+        );&#13;
+    } else {&#13;
+        log('使用者: ' + userDetail.name + ' 猜測錯誤');&#13;
+        create channel_ledger (&#13;
+            channel = channelDetail,&#13;
+            user_id = userDetail,&#13;
+            from = userDetail._id,&#13;
+            to = channelDetail._id,&#13;
+            guess_number = guessNumber,&#13;
+            pay_point = 10,&#13;
+            memo = 'not guess Hit!'&#13;
+        );&#13;
+    }&#13;
+}&#13;
+&#13;
+query getHistory(userId: text) {&#13;
+    if (user @? { ._id == userId } == null) {&#13;
+        return ''.to_gtv_pretty();&#13;
+    } else {&#13;
+        val userDetail = user @ { ._id == userId };&#13;
+        return channel_ledger @* { .user_id == userDetail } (&#13;
+            channel = .channel._id,&#13;
+            userId = .user_id._id,&#13;
+            from = .from,&#13;
+            to = .to,&#13;
+            guessNumber = .guess_number,&#13;
+            payPoint = .pay_point,&#13;
+            memo = .memo,&#13;
+            createdAt = .created_at&#13;
+        ).to_gtv_pretty();&#13;
+    }&#13;
+}&#13;
+&#13;
+query getChannelHistory(channelId: text) {&#13;
+    if (channel @? { ._id == channelId } == null) {&#13;
+        return ''.to_gtv_pretty();&#13;
+    } else {&#13;
+        val channelDetail = channel @ { ._id == channelId };&#13;
+        return channel_ledger @* { .channel == channelDetail } (&#13;
+            channel = .channel._id,&#13;
+            userId = .user_id._id,&#13;
+            from = .from,&#13;
+            to = .to,&#13;
+            guessNumber = .guess_number,&#13;
+            payPoint = .pay_point,&#13;
+            memo = .memo,&#13;
+            createdAt = .created_at&#13;
+        ).to_gtv_pretty();&#13;
+    }&#13;
+}&#13;
+// docker compose 如何刪除 volume&#13;
+</string>
+                            </entry>
+                        </dict>
+                    </entry>
+                    <entry key="version">
+                        <string>0.12.0</string>
+                    </entry>
+                </dict>
+            </entry>
+        </dict>
+    </entry>
+    <entry key="max_block_future_time">
+        <int>10000</int>
+    </entry>
+    <entry key="query_cache_ttl_seconds">
+        <int>0</int>
+    </entry>
+    <entry key="revolt">
+        <dict>
+            <entry key="fast_revolt_status_timeout">
+                <int>2000</int>
+            </entry>
+            <entry key="revolt_when_should_build_block">
+                <int>1</int>
+            </entry>
+        </dict>
+    </entry>
+    <entry key="signers">
+        <array>
+            <bytea>02C86E998A0CD3E6FC1FE1B571CCCA60A59D8A3C1C6AF7D9446C25489C681F09F3</bytea>
+            <bytea>0213DF1E0CCC65DB0BC34AEBC317F304B17868978EAFC873C637C58ECBB04DAB3C</bytea>
+            <bytea>038FDE72308A4297F220C48D8ECE3147905F068EFE1908E51D5A25ADBA49A0652A</bytea>
+            <bytea>03FEB85B59FADDAA7BD64E81CC2F57473EB220ABEA32A9398C65C0C06FBDEF3290</bytea>
+        </array>
+    </entry>
+    <entry key="txqueuecapacity">
+        <int>2500</int>
+    </entry>
+</dict>
