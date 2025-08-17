@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker:*)",
+      "Bash(net start:*)",
+      "Bash(start \"Docker Desktop\" \"C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe\")",
+      "Bash(where docker)",
+      "Bash(powershell:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(ls:*)",
+      "Bash(npm run start:dev:*)",
+      "Bash(start /b npm run start:dev)",
+      "Bash(curl:*)",
+      "Bash(python -m pip install:*)",
+      "Bash(python:*)"
+    ],
+    "deny": []
+  }
+}
